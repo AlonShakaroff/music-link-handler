@@ -1,0 +1,101 @@
+{
+  "expo": {
+    "name": "Music Link Handler",
+    "slug": "music-link-handler",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "musiclinkhandler",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.musiclinkhandler.app",
+      "associatedDomains": [
+        "applinks:song.link",
+        "applinks:album.link",
+        "applinks:artist.link",
+        "applinks:playlist.link",
+        "applinks:music.link",
+        "applinks:pods.link",
+        "applinks:mylink.page",
+        "applinks:odesli.co"
+      ]
+    },
+    "android": {
+      "package": "com.musiclinkhandler.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "*.song.link",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.album.link",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.artist.link",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.playlist.link",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.music.link",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.pods.link",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.mylink.page",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "*.odesli.co",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    }
+  }
+}
