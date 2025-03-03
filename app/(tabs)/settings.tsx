@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, Platform, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Check, ExternalLink } from 'lucide-react-native';
@@ -10,7 +10,6 @@ import { useRouter } from 'expo-router';
 
 export default function SettingsScreen() {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [isTestMode, setIsTestMode] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -20,9 +19,6 @@ export default function SettingsScreen() {
   const loadSettings = async () => {
     const platform = await getPreferredPlatform();
     setSelectedPlatform(platform);
-
-    const testMode = await AsyncStorage.getItem('testMode');
-    setIsTestMode(testMode === 'true');
   };
 
   const handlePlatformSelect = async (platformKey: string) => {
@@ -43,11 +39,6 @@ export default function SettingsScreen() {
         'There was an issue saving your preference. Please try again.'
       );
     }
-  };
-
-  const toggleTestMode = async (value: boolean) => {
-    setIsTestMode(value);
-    await AsyncStorage.setItem('testMode', value.toString());
   };
 
   const testLinkHandling = async () => {
@@ -135,21 +126,6 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>App Settings</Text>
-
-          <View style={styles.settingItem}>
-            <View>
-              <Text style={styles.settingName}>Test Mode</Text>
-              <Text style={styles.settingDescription}>
-                Enable to see detailed logs and test link handling
-              </Text>
-            </View>
-            <Switch
-              value={isTestMode}
-              onValueChange={toggleTestMode}
-              trackColor={{ false: '#d1d1d6', true: '#b0d0ff' }}
-              thumbColor={isTestMode ? '#007AFF' : '#f4f3f4'}
-            />
-          </View>
 
           <TouchableOpacity
             style={styles.testButton}
@@ -260,22 +236,6 @@ const styles = StyleSheet.create({
   selectedPlatformText: {
     fontWeight: 'bold',
     color: '#007AFF',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  settingName: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 4,
-  },
-  settingDescription: {
-    fontSize: 14,
-    color: '#666',
-    maxWidth: '80%',
   },
   testButton: {
     backgroundColor: '#007AFF',
