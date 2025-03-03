@@ -37,10 +37,13 @@ export default function RootLayout() {
           // Store the Odesli link
           await AsyncStorage.setItem('lastOdesliLink', event.url);
 
+          // Clear any previous redirected URL to prevent loop detection issues
+          await AsyncStorage.removeItem('lastRedirectedUrl');
+
           // Navigate to the redirect screen with the URL as a parameter
           router.push({
             pathname: '/redirect',
-            params: { url: encodeURIComponent(event.url) }
+            params: { url: encodeURIComponent(event.url), t: Date.now() }
           });
         } else {
           console.log('Not an Odesli link, not redirecting');

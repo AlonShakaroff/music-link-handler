@@ -53,11 +53,12 @@ export default function SettingsScreen() {
     try {
       // Clear any previous redirected URL to ensure we don't trigger the loop prevention
       await AsyncStorage.removeItem('lastRedirectedUrl');
+      await AsyncStorage.removeItem('lastProcessedOdesliUrl');
 
-      // Navigate to the redirect screen with the test URL
+      // Navigate to the redirect screen with the test URL and a timestamp to ensure uniqueness
       router.push({
         pathname: '/redirect',
-        params: { url: encodeURIComponent(testLink) }
+        params: { url: encodeURIComponent(testLink), t: Date.now() }
       });
     } catch (error) {
       console.error('Error opening test link:', error);
@@ -180,6 +181,9 @@ export default function SettingsScreen() {
           </Text>
           <Text style={styles.aboutText}>
             This app intercepts Odesli links (song.link, album.link, etc.) and redirects them to your preferred music platform.
+          </Text>
+          <Text style={styles.aboutText}>
+            Created by Alon Shakaroff.
           </Text>
         </View>
       </ScrollView>

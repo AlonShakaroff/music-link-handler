@@ -52,11 +52,13 @@ export const getPlatformSpecificUrl = async (odesliUrl: string, platformKey: str
   try {
     console.log(`Fetching platform-specific URL for ${platformKey} from ${odesliUrl}`);
 
-    // Check if we've already processed this URL to prevent infinite loops
+    // Check if we've already processed this exact URL to prevent infinite loops
+    const lastProcessedUrl = await AsyncStorage.getItem('lastProcessedOdesliUrl');
     const lastRedirectedUrl = await AsyncStorage.getItem('lastRedirectedUrl');
-    if (lastRedirectedUrl === odesliUrl) {
-      console.log('Already redirected to this URL, preventing loop');
-      return null;
+
+    if (lastProcessedUrl === odesliUrl && lastRedirectedUrl) {
+      console.log('Using cached redirect for this Odesli URL:', lastRedirectedUrl);
+      return lastRedirectedUrl;
     }
 
     // Call the Odesli API to get platform-specific links

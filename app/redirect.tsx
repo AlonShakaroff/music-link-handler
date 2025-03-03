@@ -13,6 +13,7 @@ export default function RedirectScreen() {
   const [platformName, setPlatformName] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(5);
+  const [processedUrl, setProcessedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -44,7 +45,16 @@ export default function RedirectScreen() {
       try {
         // Decode the URL if it's encoded
         const decodedUrl = decodeURIComponent(url);
-        console.log('Redirecting URL:', decodedUrl);
+
+        // Skip if we've already processed this exact URL in this component instance
+        if (processedUrl === decodedUrl) {
+          console.log('Already processed this URL, skipping:', decodedUrl);
+          return;
+        }
+
+        // Mark this URL as being processed
+        setProcessedUrl(decodedUrl);
+        console.log('Processing URL:', decodedUrl);
 
         // Get the preferred platform
         const platformKey = await getPreferredPlatform();
@@ -61,6 +71,10 @@ export default function RedirectScreen() {
 
         // Get the platform-specific URL
         setStatus('redirecting');
+
+        // Clear any previous redirected URL to prevent loop detection issues
+        await AsyncStorage.removeItem('lastRedirectedUrl');
+
         const platformUrl = await getPlatformSpecificUrl(decodedUrl, platformKey);
 
         if (platformUrl) {
@@ -68,6 +82,7 @@ export default function RedirectScreen() {
 
           // Store the URL we're redirecting to
           await AsyncStorage.setItem('lastRedirectedUrl', platformUrl);
+          await AsyncStorage.setItem('lastProcessedOdesliUrl', decodedUrl);
 
           // Open the platform-specific URL
           await Linking.openURL(platformUrl);
@@ -94,7 +109,7 @@ export default function RedirectScreen() {
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [url, router, status]);
+  }, [url, router, status, processedUrl]);
 
   return (
     <View style={styles.container}>
