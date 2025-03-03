@@ -2,16 +2,20 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Linking, Platform, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Music as MusicNote, ExternalLink } from 'lucide-react-native';
+import { Music as MusicNote, ExternalLink, Bug, RefreshCw } from 'lucide-react-native';
 import { MUSIC_PLATFORMS, getPreferredPlatform } from '@/utils/musicPlatforms';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as WebBrowser from 'expo-web-browser';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
   const [lastLink, setLastLink] = useState<string | null>(null);
   const [initialLink, setInitialLink] = useState<string | null>(null);
   const [preferredPlatform, setPreferredPlatform] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
+  const [lastApiResponse, setLastApiResponse] = useState<string | null>(null);
+  const [lastApiError, setLastApiError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     // Load the preferred platform
@@ -28,15 +32,26 @@ export default function HomeScreen() {
       const storedLastLink = await AsyncStorage.getItem('lastOdesliLink');
       const initialOpenURL = await AsyncStorage.getItem('initialOpenURL');
       const lastReceivedLink = await AsyncStorage.getItem('lastReceivedLink');
+      const apiResponse = await AsyncStorage.getItem('lastOdesliApiResponse');
+      const apiError = await AsyncStorage.getItem('lastOdesliApiError');
+      const lastRedirectedUrl = await AsyncStorage.getItem('lastRedirectedUrl');
 
       if (storedLastLink) setLastLink(storedLastLink);
       if (initialOpenURL) setInitialLink(initialOpenURL);
+      if (apiResponse) setLastApiResponse(apiResponse);
+      if (apiError) setLastApiError(apiError);
 
       // Add debug info
       const info = [];
       info.push(`Last stored link: ${storedLastLink || 'None'}`);
       info.push(`Initial URL: ${initialOpenURL || 'None'}`);
       info.push(`Last received link: ${lastReceivedLink || 'None'}`);
+      info.push(`Last redirected URL: ${lastRedirectedUrl || 'None'}`);
+
+      if (apiError) {
+        info.push(`Last API error: ${apiError}`);
+      }
+
       setDebugInfo(info);
     };
 
@@ -70,18 +85,6 @@ export default function HomeScreen() {
     if (isOdesliLink(url)) {
       setLastLink(url);
       await AsyncStorage.setItem('lastOdesliLink', url);
-
-      const platform = await getPreferredPlatform();
-      if (platform) {
-        // In a real implementation, we would fetch the platform-specific link
-        // from the Odesli API and redirect to it
-        console.log(`Redirecting ${url} to ${platform}`);
-
-        // This is a placeholder for the actual redirection logic
-        // In a real app, you would:
-        // 1. Fetch the platform-specific URL from Odesli API
-        // 2. Open that URL with Linking.openURL()
-      }
     }
   };
 
@@ -116,19 +119,14 @@ export default function HomeScreen() {
     const testLink = 'https://song.link/s/4cOdK2wGLETKBW3PvgPWqT';
 
     try {
-      if (Platform.OS === 'android') {
-        // On Android, try to open the link with the app's intent filter
-        const canOpen = await Linking.canOpenURL(testLink);
-        if (canOpen) {
-          await Linking.openURL(testLink);
-        } else {
-          // If can't open directly, try using WebBrowser
-          await WebBrowser.openBrowserAsync(testLink);
-        }
-      } else {
-        // On iOS, just use Linking
-        await Linking.openURL(testLink);
-      }
+      // Clear any previous redirected URL to ensure we don't trigger the loop prevention
+      await AsyncStorage.removeItem('lastRedirectedUrl');
+
+      // Navigate to the redirect screen with the test URL
+      router.push({
+        pathname: '/redirect',
+        params: { url: encodeURIComponent(testLink) }
+      });
     } catch (error) {
       console.error('Error opening test link:', error);
       Alert.alert('Error', 'Could not open the test link. Please check your device settings.');
@@ -147,6 +145,57 @@ export default function HomeScreen() {
         Alert.alert('Error', 'Could not open app settings.');
       }
     }
+  };
+
+  const clearDebugData = async () => {
+    try {
+      await AsyncStorage.multiRemove([
+        'lastOdesliLink',
+        'initialOpenURL',
+        'lastReceivedLink',
+        'lastOdesliApiResponse',
+        'lastOdesliApiError',
+        'lastRedirectedUrl'
+      ]);
+      setLastLink(null);
+      setInitialLink(null);
+      setDebugInfo([]);
+      setLastApiResponse(null);
+      setLastApiError(null);
+      Alert.alert('Success', 'Debug data cleared');
+    } catch (error) {
+      console.error('Error clearing debug data:', error);
+      Alert.alert('Error', 'Could not clear debug data');
+    }
+  };
+
+  const refreshDebugInfo = async () => {
+    const storedLastLink = await AsyncStorage.getItem('lastOdesliLink');
+    const initialOpenURL = await AsyncStorage.getItem('initialOpenURL');
+    const lastReceivedLink = await AsyncStorage.getItem('lastReceivedLink');
+    const apiResponse = await AsyncStorage.getItem('lastOdesliApiResponse');
+    const apiError = await AsyncStorage.getItem('lastOdesliApiError');
+    const lastRedirectedUrl = await AsyncStorage.getItem('lastRedirectedUrl');
+
+    if (storedLastLink) setLastLink(storedLastLink);
+    if (initialOpenURL) setInitialLink(initialOpenURL);
+    if (apiResponse) setLastApiResponse(apiResponse);
+    if (apiError) setLastApiError(apiError);
+
+    // Add debug info
+    const info = [];
+    info.push(`Last stored link: ${storedLastLink || 'None'}`);
+    info.push(`Initial URL: ${initialOpenURL || 'None'}`);
+    info.push(`Last received link: ${lastReceivedLink || 'None'}`);
+    info.push(`Last redirected URL: ${lastRedirectedUrl || 'None'}`);
+
+    if (apiError) {
+      info.push(`Last API error: ${apiError}`);
+    }
+
+    setDebugInfo(info);
+
+    Alert.alert('Success', 'Debug info refreshed');
   };
 
   return (
@@ -222,10 +271,44 @@ export default function HomeScreen() {
 
         {debugInfo.length > 0 && (
           <View style={styles.debugCard}>
-            <Text style={styles.infoTitle}>Debug Information</Text>
+            <View style={styles.debugHeader}>
+              <Text style={styles.infoTitle}>Debug Information</Text>
+              <TouchableOpacity onPress={refreshDebugInfo}>
+                <RefreshCw size={20} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
+
             {debugInfo.map((info, index) => (
               <Text key={index} style={styles.debugText}>{info}</Text>
             ))}
+
+            {lastApiError && (
+              <>
+                <Text style={styles.debugSubtitle}>Last API Error:</Text>
+                <Text style={[styles.debugText, styles.errorText]}>{lastApiError}</Text>
+              </>
+            )}
+
+            {lastApiResponse && (
+              <>
+                <Text style={styles.debugSubtitle}>Last API Response:</Text>
+                <ScrollView style={styles.apiResponseContainer} horizontal={false}>
+                  <Text style={styles.apiResponseText}>
+                    {lastApiResponse.length > 500
+                      ? lastApiResponse.substring(0, 500) + '...'
+                      : lastApiResponse}
+                  </Text>
+                </ScrollView>
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.actionButton, { marginTop: 12, backgroundColor: '#FF3B30' }]}
+              onPress={clearDebugData}
+            >
+              <Text style={styles.actionButtonText}>Clear Debug Data</Text>
+              <Bug size={16} color="#fff" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -284,6 +367,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  debugHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   infoTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -295,6 +384,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 8,
+    color: '#555',
+  },
+  debugSubtitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 12,
+    marginBottom: 4,
     color: '#555',
   },
   infoText: {
@@ -337,5 +433,20 @@ const styles = StyleSheet.create({
     color: '#666',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginBottom: 4,
+  },
+  errorText: {
+    color: '#FF3B30',
+  },
+  apiResponseContainer: {
+    maxHeight: 200,
+    backgroundColor: '#f5f5f7',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 4,
+  },
+  apiResponseText: {
+    fontSize: 11,
+    color: '#666',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });

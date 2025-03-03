@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Check, ExternalLink } from 'lucide-react-native';
 import { MUSIC_PLATFORMS, getPreferredPlatform, setPreferredPlatform } from '@/utils/musicPlatforms';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as WebBrowser from 'expo-web-browser';
+import { useRouter } from 'expo-router';
 
 export default function SettingsScreen() {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [isTestMode, setIsTestMode] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     loadSettings();
@@ -58,19 +60,14 @@ export default function SettingsScreen() {
     const testLink = 'https://song.link/s/4cOdK2wGLETKBW3PvgPWqT';
 
     try {
-      if (Platform.OS === 'android') {
-        // On Android, try to open the link with the app's intent filter
-        const canOpen = await Linking.canOpenURL(testLink);
-        if (canOpen) {
-          await Linking.openURL(testLink);
-        } else {
-          // If can't open directly, try using WebBrowser
-          await WebBrowser.openBrowserAsync(testLink);
-        }
-      } else {
-        // On iOS, just use Linking
-        await Linking.openURL(testLink);
-      }
+      // Clear any previous redirected URL to ensure we don't trigger the loop prevention
+      await AsyncStorage.removeItem('lastRedirectedUrl');
+
+      // Navigate to the redirect screen with the test URL
+      router.push({
+        pathname: '/redirect',
+        params: { url: encodeURIComponent(testLink) }
+      });
     } catch (error) {
       console.error('Error opening test link:', error);
       Alert.alert('Error', 'Could not open the test link. Please check your device settings.');

@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPreferredPlatform } from '@/utils/musicPlatforms';
+import { useRouter } from 'expo-router';
 
 declare global {
   interface Window {
@@ -12,6 +13,8 @@ declare global {
 }
 
 export default function RootLayout() {
+  const router = useRouter();
+
   useEffect(() => {
     window.frameworkReady?.();
 
@@ -26,8 +29,45 @@ export default function RootLayout() {
       const platform = await getPreferredPlatform();
       if (platform) {
         console.log('Preferred platform found:', platform);
+
+        // Check if this is an Odesli link
+        if (isOdesliLink(event.url)) {
+          console.log('Odesli link detected, navigating to redirect screen');
+
+          // Store the Odesli link
+          await AsyncStorage.setItem('lastOdesliLink', event.url);
+
+          // Navigate to the redirect screen with the URL as a parameter
+          router.push({
+            pathname: '/redirect',
+            params: { url: encodeURIComponent(event.url) }
+          });
+        } else {
+          console.log('Not an Odesli link, not redirecting');
+        }
       } else {
         console.log('No preferred platform set');
+      }
+    };
+
+    // Helper function to check if a URL is an Odesli link
+    const isOdesliLink = (url: string): boolean => {
+      const odesliDomains = [
+        'song.link',
+        'album.link',
+        'artist.link',
+        'playlist.link',
+        'music.link',
+        'pods.link',
+        'mylink.page',
+        'odesli.co'
+      ];
+
+      try {
+        const urlObj = new URL(url);
+        return odesliDomains.some(domain => urlObj.hostname.includes(domain));
+      } catch (e) {
+        return false;
       }
     };
 
@@ -55,12 +95,13 @@ export default function RootLayout() {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [router]);
 
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="redirect" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

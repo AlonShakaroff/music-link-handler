@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
 
 export const MUSIC_PLATFORMS = [
   { key: 'spotify', name: 'Spotify' },
@@ -47,29 +47,88 @@ export const setPreferredPlatform = async (platform: string): Promise<void> => {
   }
 };
 
-// This function would fetch the platform-specific URL from the Odesli API
-// In a real implementation, you would call this when intercepting an Odesli link
-export const getPlatformSpecificUrl = async (odesliUrl: string, platform: string): Promise<string | null> => {
+// This function fetches the platform-specific URL from the Odesli API
+export const getPlatformSpecificUrl = async (odesliUrl: string, platformKey: string): Promise<string | null> => {
   try {
-    // Extract the song/album ID from the Odesli URL
-    // This is a simplified example - actual implementation would depend on Odesli URL structure
-    const urlParts = odesliUrl.split('/');
-    const id = urlParts[urlParts.length - 1];
+    console.log(`Fetching platform-specific URL for ${platformKey} from ${odesliUrl}`);
 
-    // Call the Odesli API to get platform-specific links
-    // Odesli API endpoint: https://api.song.link/v1-alpha.1/links
-    const response = await fetch(`https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(odesliUrl)}`);
-    const data = await response.json();
-
-    // Extract the platform-specific URL from the response
-    // The actual structure of the response would need to be handled properly
-    if (data.linksByPlatform && data.linksByPlatform[platform]) {
-      return data.linksByPlatform[platform].url;
+    // Check if we've already processed this URL to prevent infinite loops
+    const lastRedirectedUrl = await AsyncStorage.getItem('lastRedirectedUrl');
+    if (lastRedirectedUrl === odesliUrl) {
+      console.log('Already redirected to this URL, preventing loop');
+      return null;
     }
 
+    // Call the Odesli API to get platform-specific links
+    const apiUrl = `https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(odesliUrl)}`;
+    console.log('Calling Odesli API:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Odesli API returned status ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Odesli API response received');
+
+    // Store the full response for debugging
+    await AsyncStorage.setItem('lastOdesliApiResponse', JSON.stringify(data));
+
+    // Map platform keys to Odesli platform keys
+    const platformMapping: Record<string, string[]> = {
+      'spotify': ['spotify', 'spotifyWeb'],
+      'apple_music': ['appleMusic', 'appleMusicWeb'],
+      'youtube_music': ['youtubeMusic', 'youtubeMusicWeb'],
+      'deezer': ['deezer', 'deezerWeb'],
+      'tidal': ['tidal', 'tidalWeb'],
+      'amazon_music': ['amazonMusic', 'amazonMusicWeb'],
+      'pandora': ['pandora', 'pandoraWeb'],
+      'soundcloud': ['soundcloud', 'soundcloudWeb']
+    };
+
+    // Get the list of possible platform keys for the selected platform
+    const possiblePlatformKeys = platformMapping[platformKey] || [platformKey];
+
+    // Try each possible platform key
+    for (const key of possiblePlatformKeys) {
+      if (data.linksByPlatform && data.linksByPlatform[key]) {
+        const platformUrl = data.linksByPlatform[key].url;
+        console.log(`Found ${key} URL:`, platformUrl);
+        return platformUrl;
+      }
+    }
+
+    // If we couldn't find a match with the mapping, log available platforms
+    console.log(`No ${platformKey} URL found in Odesli response`);
+
+    // Log available platforms for debugging
+    if (data.linksByPlatform) {
+      const availablePlatforms = Object.keys(data.linksByPlatform);
+      console.log('Available platforms:', availablePlatforms.join(', '));
+
+      // If the exact platform isn't found, try to find a close match
+      for (const availablePlatform of availablePlatforms) {
+        if (availablePlatform.toLowerCase().includes(platformKey.toLowerCase())) {
+          const alternativeUrl = data.linksByPlatform[availablePlatform].url;
+          console.log(`Found alternative ${availablePlatform} URL:`, alternativeUrl);
+          return alternativeUrl;
+        }
+      }
+    }
+
+    // If we couldn't get a platform-specific URL, return null
     return null;
   } catch (error) {
     console.error('Error getting platform-specific URL:', error);
+    // Store the error for debugging
+    await AsyncStorage.setItem('lastOdesliApiError', String(error));
     return null;
   }
 };
