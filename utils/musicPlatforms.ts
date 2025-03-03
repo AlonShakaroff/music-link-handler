@@ -11,9 +11,13 @@ export const MUSIC_PLATFORMS = [
   { key: 'soundcloud', name: 'SoundCloud' }
 ];
 
+const STORAGE_KEY = 'preferredMusicPlatform';
+
 export const getPreferredPlatform = async (): Promise<string | null> => {
   try {
-    return await AsyncStorage.getItem('preferredMusicPlatform');
+    const platform = await AsyncStorage.getItem(STORAGE_KEY);
+    console.log('Retrieved platform from storage:', platform);
+    return platform;
   } catch (error) {
     console.error('Error getting preferred platform:', error);
     return null;
@@ -22,9 +26,23 @@ export const getPreferredPlatform = async (): Promise<string | null> => {
 
 export const setPreferredPlatform = async (platform: string): Promise<void> => {
   try {
-    await AsyncStorage.setItem('preferredMusicPlatform', platform);
+    console.log('Setting preferred platform to:', platform);
+    await AsyncStorage.setItem(STORAGE_KEY, platform);
+
+    // Verify the platform was saved correctly
+    const savedPlatform = await AsyncStorage.getItem(STORAGE_KEY);
+    console.log('Verified saved platform:', savedPlatform);
+
+    if (savedPlatform !== platform) {
+      console.error('Platform verification failed. Expected:', platform, 'Got:', savedPlatform);
+      // Force a second attempt if verification failed
+      await AsyncStorage.setItem(STORAGE_KEY, platform);
+      const secondVerification = await AsyncStorage.getItem(STORAGE_KEY);
+      console.log('Second verification attempt:', secondVerification);
+    }
   } catch (error) {
     console.error('Error setting preferred platform:', error);
+    throw error; // Re-throw to allow handling in the UI
   }
 };
 

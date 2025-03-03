@@ -84,9 +84,48 @@ To build for web:
 npm run build:web
 ```
 
-### Android
+### Android APK (Direct Method - No EAS Account Required)
 
-To build for Android:
+To build an APK directly without using EAS Build:
+
+```bash
+npm run build:android:local:dev
+```
+
+This will:
+1. Generate the native Android project
+2. Build the APK using Gradle directly
+3. Output the APK to `android/app/build/outputs/apk/debug/app-debug.apk`
+
+### Android APK (Local Build - EAS Account Required)
+
+To build an APK locally using EAS:
+
+```bash
+npm run build:android:local
+```
+
+This will:
+1. Create a development build
+2. Generate an APK file locally
+3. Output the APK location when complete
+
+### Android APK (EAS Build - EAS Account Required)
+
+To build an APK using EAS Build service:
+מפצ
+```bash
+npm run build:android:apk
+```
+
+This will:
+1. Build your app in the EAS cloud
+2. Generate an APK file (rather than an AAB file used for Play Store)
+3. Provide a download link when complete
+
+### Android Play Store Build
+
+To build for Google Play Store submission:
 
 ```bash
 npm run build:android
@@ -125,7 +164,7 @@ The app is already configured for Google Play Store in the following files:
    ```
 
 3. **Update the configuration**:
-   - Replace `"your-project-id"` in `app.json` with your actual EAS project ID
+   - Update the `"projectId"` in `app.json` with your actual EAS project ID
    - Update the `"serviceAccountKeyPath"` in `eas.json` to point to your Google Play service account key file
 
 4. **Build your app for production**:
@@ -142,6 +181,41 @@ The app is already configured for Google Play Store in the following files:
 
 - Update the `version` in `app.json` for each new release
 - The `versionCode` in `app.json` will be automatically incremented with each build when using `"autoIncrement": true` in `eas.json`
+
+## Troubleshooting APK Builds
+
+### SSL Certificate Errors
+
+If you encounter SSL certificate errors with EAS Build:
+
+1. **Use the direct build method**:
+   - Run `npm run build:android:local:dev` which bypasses EAS Build entirely
+   - This method uses Gradle directly and doesn't require an EAS account
+
+2. **Network issues**:
+   - Try using a different network connection
+   - Disable any VPNs or proxies that might interfere with SSL certificates
+
+3. **EAS CLI issues**:
+   - Update EAS CLI: `npm install -g eas-cli@latest`
+   - Clear EAS cache: `rm -rf ~/.eas`
+
+### Other Build Issues
+
+1. **Invalid UUID appId error**:
+   - Make sure you've run `npx eas login` first
+   - Ensure your project has a valid projectId in app.json
+   - Try running `npx eas build:configure` to set up your project
+
+2. **Local build issues**:
+   - Ensure you have the Android SDK installed
+   - Set ANDROID_HOME environment variable
+   - Install required build tools with Android SDK Manager
+
+3. **Build fails with dependency errors**:
+   - Run `npm install` to ensure all dependencies are installed
+   - Clear the npm cache with `npm cache clean --force`
+   - Delete node_modules and reinstall with `rm -rf node_modules && npm install`
 
 ## Android Setup Instructions
 
