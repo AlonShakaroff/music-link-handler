@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Check } from 'lucide-react-native';
+import { Check, ExternalLink } from 'lucide-react-native';
 import { MUSIC_PLATFORMS, getPreferredPlatform, setPreferredPlatform } from '@/utils/musicPlatforms';
+import * as IntentLauncher from 'expo-intent-launcher';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function SettingsScreen() {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
@@ -16,7 +18,7 @@ export default function SettingsScreen() {
   const loadSettings = async () => {
     const platform = await getPreferredPlatform();
     setSelectedPlatform(platform);
-    
+
     const testMode = await AsyncStorage.getItem('testMode');
     setIsTestMode(testMode === 'true');
   };
@@ -24,10 +26,21 @@ export default function SettingsScreen() {
   const handlePlatformSelect = async (platformKey: string) => {
     setSelectedPlatform(platformKey);
     await setPreferredPlatform(platformKey);
-    Alert.alert(
-      'Preference Saved',
-      `All Odesli links will now open in ${MUSIC_PLATFORMS.find(p => p.key === platformKey)?.name}.`
-    );
+
+    // Verify the platform was saved correctly
+    const savedPlatform = await getPreferredPlatform();
+
+    if (savedPlatform === platformKey) {
+      Alert.alert(
+        'Preference Saved',
+        `All Odesli links will now open in ${MUSIC_PLATFORMS.find(p => p.key === platformKey)?.name}.`
+      );
+    } else {
+      Alert.alert(
+        'Error Saving Preference',
+        'There was an issue saving your preference. Please try again.'
+      );
+    }
   };
 
   const toggleTestMode = async (value: boolean) => {
@@ -35,31 +48,61 @@ export default function SettingsScreen() {
     await AsyncStorage.setItem('testMode', value.toString());
   };
 
-  const testLinkHandling = () => {
+  const testLinkHandling = async () => {
     if (!selectedPlatform) {
       Alert.alert('Error', 'Please select a preferred platform first.');
       return;
     }
-    
+
     // Test link for demonstration
     const testLink = 'https://song.link/s/4cOdK2wGLETKBW3PvgPWqT';
-    
-    Alert.alert(
-      'Test Link',
-      `Opening test link: ${testLink}\n\nThis would redirect to your ${MUSIC_PLATFORMS.find(p => p.key === selectedPlatform)?.name} app.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Open Test Link', 
-          onPress: () => {
-            // In a real implementation, we would:
-            // 1. Fetch the platform-specific URL from Odesli API
-            // 2. Open that URL with Linking.openURL()
-            console.log(`Test: Redirecting to ${selectedPlatform}`);
-          }
+
+    try {
+      if (Platform.OS === 'android') {
+        // On Android, try to open the link with the app's intent filter
+        const canOpen = await Linking.canOpenURL(testLink);
+        if (canOpen) {
+          await Linking.openURL(testLink);
+        } else {
+          // If can't open directly, try using WebBrowser
+          await WebBrowser.openBrowserAsync(testLink);
         }
-      ]
-    );
+      } else {
+        // On iOS, just use Linking
+        await Linking.openURL(testLink);
+      }
+    } catch (error) {
+      console.error('Error opening test link:', error);
+      Alert.alert('Error', 'Could not open the test link. Please check your device settings.');
+    }
+  };
+
+  const openAndroidAppSettings = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        await IntentLauncher.startActivityAsync(
+          IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS,
+          { data: 'package:com.musiclinkhandler.app' }
+        );
+      } catch (error) {
+        console.error('Error opening app settings:', error);
+        Alert.alert('Error', 'Could not open app settings.');
+      }
+    }
+  };
+
+  const openAndroidDefaultAppsSettings = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        // This opens the "Default apps" settings on Android
+        await IntentLauncher.startActivityAsync(
+          'android.settings.MANAGE_DEFAULT_APPS_SETTINGS'
+        );
+      } catch (error) {
+        console.error('Error opening default apps settings:', error);
+        Alert.alert('Error', 'Could not open default apps settings.');
+      }
+    }
   };
 
   return (
@@ -70,7 +113,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionDescription}>
             Select your preferred music platform. All Odesli links will automatically open in this platform.
           </Text>
-          
+
           {MUSIC_PLATFORMS.map((platform) => (
             <TouchableOpacity
               key={platform.key}
@@ -92,10 +135,10 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>App Settings</Text>
-          
+
           <View style={styles.settingItem}>
             <View>
               <Text style={styles.settingName}>Test Mode</Text>
@@ -110,20 +153,21 @@ export default function SettingsScreen() {
               thumbColor={isTestMode ? '#007AFF' : '#f4f3f4'}
             />
           </View>
-          
+
           <TouchableOpacity
             style={styles.testButton}
             onPress={testLinkHandling}
           >
             <Text style={styles.testButtonText}>Test Link Handling</Text>
+            <ExternalLink size={16} color="#fff" style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </View>
-        
+
         {Platform.OS === 'android' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Android Setup</Text>
             <Text style={styles.sectionDescription}>
-              For Android devices, you may need to set this app as the default handler for Odesli links:
+              For Android devices, you need to set this app as the default handler for Odesli links:
             </Text>
             <Text style={styles.instructionText}>
               1. Go to Settings > Apps > Default apps > Opening links
@@ -134,9 +178,28 @@ export default function SettingsScreen() {
             <Text style={styles.instructionText}>
               3. Enable "Open supported links"
             </Text>
+            <Text style={styles.instructionText}>
+              4. Tap on "Supported web addresses" and ensure all domains are enabled
+            </Text>
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={openAndroidAppSettings}
+              >
+                <Text style={styles.settingsButtonText}>Open App Settings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={openAndroidDefaultAppsSettings}
+              >
+                <Text style={styles.settingsButtonText}>Open Default Apps</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
-        
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
           <Text style={styles.aboutText}>
@@ -223,6 +286,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   testButtonText: {
     color: '#fff',
@@ -240,5 +305,24 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 8,
     lineHeight: 20,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  settingsButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flex: 1,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  settingsButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

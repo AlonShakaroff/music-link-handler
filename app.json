@@ -37,42 +37,42 @@
           "data": [
             {
               "scheme": "https",
-              "host": "*.song.link",
+              "host": "song.link",
               "pathPrefix": "/"
             },
             {
               "scheme": "https",
-              "host": "*.album.link",
+              "host": "album.link",
               "pathPrefix": "/"
             },
             {
               "scheme": "https",
-              "host": "*.artist.link",
+              "host": "artist.link",
               "pathPrefix": "/"
             },
             {
               "scheme": "https",
-              "host": "*.playlist.link",
+              "host": "playlist.link",
               "pathPrefix": "/"
             },
             {
               "scheme": "https",
-              "host": "*.music.link",
+              "host": "music.link",
               "pathPrefix": "/"
             },
             {
               "scheme": "https",
-              "host": "*.pods.link",
+              "host": "pods.link",
               "pathPrefix": "/"
             },
             {
               "scheme": "https",
-              "host": "*.mylink.page",
+              "host": "mylink.page",
               "pathPrefix": "/"
             },
             {
               "scheme": "https",
-              "host": "*.odesli.co",
+              "host": "odesli.co",
               "pathPrefix": "/"
             }
           ],
@@ -89,7 +89,17 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -97,9 +107,6 @@
     "extra": {
       "eas": {
         "projectId": "021abb05-f507-464a-a840-9e2621998b81"
-      },
-      "router": {
-        "origin": false
       }
     },
     "owner": "alonshakaroff"
